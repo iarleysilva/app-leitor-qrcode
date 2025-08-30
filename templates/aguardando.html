@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status da Carga</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+        
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #005a9c;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 500;
+        }
+
+        .content {
+            padding: 25px;
+        }
+
+        .details-section {
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+
+        .details-section h2 {
+            font-size: 18px;
+            color: #005a9c;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item p {
+            margin: 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .info-item strong {
+            font-size: 16px;
+            color: #333;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .status-section {
+            text-align: center;
+            padding: 30px;
+            background-color: #fffbe6;
+            border: 1px solid #ffe58f;
+            border-radius: 8px;
+        }
+        
+        .status-section h2 {
+            font-size: 20px;
+            color: #d46b08;
+            margin-top: 0;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <h1>Portobello</h1>
+        </header>
+
+        <main class="content">
+            <!-- Seção de Cabeçalho com os dados principais para identificação -->
+            <section class="details-section">
+                <h2>Detalhes da Entrega</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <p>Cliente</p>
+                        <strong>{{ data.nm_cliente }}</strong>
+                    </div>
+                    <div class="info-item">
+                        <p>Nº Percurso</p>
+                        <strong>{{ data.nr_percurso }}</strong>
+                    </div>
+                    <div class="info-item">
+                        <p>Nº Entrega</p>
+                        <strong>{{ data.nr_entrega }}</strong>
+                    </div>
+                     <div class="info-item">
+                        <p>Produto</p>
+                        <strong>{{ data.nm_produto }}</strong>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Seção de Status -->
+            <section class="status-section">
+                <h2>Aguardando Conferência</h2>
+                <p>Esta etiqueta ainda não teve seu pallet registrado no sistema.</p>
+            </section>
+        </main>
+    </div>
+
+</body>
+</html>
