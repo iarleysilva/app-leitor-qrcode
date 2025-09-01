@@ -71,18 +71,18 @@ def find_data(percurso, entrega, placeholder):
     # --- LÓGICA DE DADOS CORRIGIDA ---
     # Prepara um dicionário com os nomes que o HTML espera
     display_data = {
-        'cliente': found_data.get('NM_CLIENTE', ''),
-        'nr_percurso': found_data.get('NR_PERCURSO', ''),
-        'nr_entrega': found_data.get('NR_ENTREGA', ''),
-        'pallet': found_data.get('PALLET', ''),
-        'cod_produto': found_data.get('CD_PRODUTO', ''),
-        'produto': found_data.get('NM_PRODUTO', ''),
-        'tonalidade': found_data.get('TONALIDADE', ''),
-        'qtde': found_data.get('QTDE', '')
+        'cliente': found_data.get('NM_CLIENTE', 'N/A'),
+        'nr_percurso': found_data.get('NR_PERCURSO', 'N/A'),
+        'nr_entrega': found_data.get('NR_ENTREGA', 'N/A'),
+        'pallet': found_data.get('PALLET', 'N/A'),
+        'cod_produto': found_data.get('CD_PRODUTO', 'N/A'),
+        'produto': found_data.get('NM_PRODUTO', 'N/A'),
+        'tonalidade': found_data.get('TONALIDADE', 'N/A'),
+        'qtde': found_data.get('QTDE', 'N/A')
     }
 
     # Verifica se a coluna PALLET tem algum valor
-    if str(display_data['pallet']).strip():
+    if str(found_data.get('PALLET', '')).strip():
         print(f"Pallet encontrado ({display_data['pallet']}). Exibindo dados completos.")
         # Se tiver valor, mostra a página de detalhes
         return render_template('index.html', data=display_data)
