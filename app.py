@@ -65,11 +65,11 @@ def find_data(percurso, entrega, placeholder):
         print("Nenhum registro encontrado.")
         abort(404, description="Registro não encontrado para os dados fornecidos.")
 
-    # Pega a primeira (e única) linha encontrada
+    # Pega a primeira (e única) linha encontrada e a converte para um dicionário
     found_data = result_row.iloc[0].to_dict()
     
     # --- LÓGICA DE DADOS CORRIGIDA ---
-    # Prepara um dicionário com os nomes que o HTML espera
+    # Prepara um dicionário com os nomes que o HTML espera, traduzindo da planilha
     display_data = {
         'cliente': found_data.get('NM_CLIENTE', 'N/A'),
         'nr_percurso': found_data.get('NR_PERCURSO', 'N/A'),
@@ -100,3 +100,4 @@ def page_not_found(e):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
