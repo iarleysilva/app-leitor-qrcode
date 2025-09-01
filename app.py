@@ -11,21 +11,20 @@ app = Flask(__name__)
 
 # --- Função para Acessar a Planilha ---
 def get_sheet_data():
-    """
-    Conecta-se ao Google Sheets e retorna os dados da aba 'QR_CODE_LPN' como um DataFrame.
-    """
+    """ Conecta-se ao Google Sheets e retorna os dados da aba 'QR_CODE_LPN' """
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         
-        # Lógica de credenciais segura para produção (Render) e testes locais
-        if 'GOOGLE_CREDENTIALS_JSON' in os.environ:
-            creds_json_str = os.environ.get('GOOGLE_CREDENTIALS_JSON')
+        # Lógica de credenciais segura para o Render.com
+        creds_json_str = os.environ.get('GOOGLE_CREDENTIALS_JSON', None)
+        if creds_json_str:
             creds_dict = json.loads(creds_json_str)
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
             print("Credenciais carregadas a partir da variável de ambiente.")
         else:
+            # Fallback para o ficheiro local para testes
             creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
-            print("Credenciais carregadas a partir do arquivo local 'credentials.json'.")
+            print("Credenciais carregadas a partir do ficheiro local 'credentials.json'.")
 
         client = gspread.authorize(creds)
         spreadsheet_url = 'https://docs.google.com/spreadsheets/d/1nuftv1FJltrtpagYdW6PLa3MT_9lCCiyeQ06poO42H8/edit'
@@ -35,21 +34,19 @@ def get_sheet_data():
         df = pd.DataFrame(data)
         
         # Garante que as colunas de busca sejam tratadas como texto
-        df['NR_PERCURSO'] = df['NR_PERCURSO'].astype(str)
-        df['NR_ENTREGA'] = df['NR_ENTREGA'].astype(str)
-        df['Placeholder'] = df['Placeholder'].astype(str)
+        for col in ['NR_PERCURSO', 'NR_ENTREGA', 'Placeholder', 'PALLET']:
+            if col in df.columns:
+                df[col] = df[col].astype(str)
         
         return df
     except Exception as e:
         print(f"Erro ao acessar a planilha: {e}")
         return None
 
-# --- Rota Principal da Aplicação (com a lógica de REDIRECIONAMENTO) ---
+# --- Rota Principal da Aplicação ---
 @app.route('/<string:percurso>/<string:entrega>/<string:placeholder>')
 def find_data(percurso, entrega, placeholder):
-    """
-    Busca os dados e aplica a lógica de exibição ou redirecionamento.
-    """
+    """ Função principal que é chamada quando um QR Code é lido. """
     print(f"Buscando por Percurso={percurso}, Entrega={entrega}, Placeholder={placeholder}")
     
     df = get_sheet_data()
@@ -57,6 +54,7 @@ def find_data(percurso, entrega, placeholder):
     if df is None:
         return "Erro: Não foi possível conectar à base de dados.", 500
 
+    # Busca pela linha que corresponde aos 3 critérios
     result_row = df[
         (df['NR_PERCURSO'] == percurso) &
         (df['NR_ENTREGA'] == entrega) &
@@ -67,27 +65,30 @@ def find_data(percurso, entrega, placeholder):
         print("Nenhum registro encontrado.")
         abort(404, description="Registro não encontrado para os dados fornecidos.")
 
-    found_data = result_row.iloc[0]
+    # Pega a primeira (e única) linha encontrada
+    found_data = result_row.iloc[0].to_dict()
     
-    # --- LÓGICA FINAL CORRIGIDA ---
-    
-    # Se a coluna PALLET tiver um valor...
-    if str(found_data['PALLET']).strip():
-        final_url = found_data['URL_PARA_QR_CODE']
-        print(f"Pallet encontrado ({found_data['PALLET']}). Redirecionando para: {final_url}")
-        # Redireciona o navegador do usuário para a URL final
-        return redirect(final_url)
+    # --- LÓGICA DE DADOS CORRIGIDA ---
+    # Prepara um dicionário com os nomes que o HTML espera
+    display_data = {
+        'cliente': found_data.get('NM_CLIENTE', ''),
+        'nr_percurso': found_data.get('NR_PERCURSO', ''),
+        'nr_entrega': found_data.get('NR_ENTREGA', ''),
+        'pallet': found_data.get('PALLET', ''),
+        'cod_produto': found_data.get('CD_PRODUTO', ''),
+        'produto': found_data.get('NM_PRODUTO', ''),
+        'tonalidade': found_data.get('TONALIDADE', ''),
+        'qtde': found_data.get('QTDE', '')
+    }
+
+    # Verifica se a coluna PALLET tem algum valor
+    if str(display_data['pallet']).strip():
+        print(f"Pallet encontrado ({display_data['pallet']}). Exibindo dados completos.")
+        # Se tiver valor, mostra a página de detalhes
+        return render_template('index.html', data=display_data)
     else:
-        # Se a coluna PALLET estiver vazia...
         print("Pallet vazio. Exibindo página de aguardando conferência.")
-        # Prepara os dados para a tela de "Aguardando"
-        display_data = {
-            'nm_cliente': found_data['NM_CLIENTE'],
-            'nr_percurso': found_data['NR_PERCURSO'],
-            'nr_entrega': found_data['NR_ENTREGA'],
-            'nm_produto': found_data['NM_PRODUTO']
-        }
-        # Mostra a página de status
+        # Se a coluna PALLET estiver vazia, mostra a página de status
         return render_template('aguardando.html', data=display_data)
 
 # Rota para página de erro 404 personalizada
@@ -95,9 +96,7 @@ def find_data(percurso, entrega, placeholder):
 def page_not_found(e):
     return render_template('404.html', error=e.description), 404
 
-# Ponto de entrada para execução (necessário para o Render)
+# --- Ponto de entrada para execução ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
-
