@@ -55,7 +55,7 @@ def build_display_data(found_data):
         'unidade': found_data.get('UNIDADE', '')
     }
 
-# --- Rota Principal da Aplicação (MODIFICADA) ---
+# --- Rota Principal da Aplicação ---
 @app.route('/<string:percurso>/<string:entrega>/<string:identifier>')
 def find_data(percurso, entrega, identifier):
     """
@@ -76,17 +76,14 @@ def find_data(percurso, entrega, identifier):
         (df['Placeholder'] == identifier)
     ]
 
-    # Se encontrou usando o Placeholder, decide se redireciona ou mostra 'aguardando'
     if not result_row_placeholder.empty:
         found_data = result_row_placeholder.iloc[0].to_dict()
         real_pallet = found_data.get('PALLET')
         
-        # Se o pallet real existe e não está vazio, redireciona
         if real_pallet and str(real_pallet).strip():
             print(f"Placeholder '{identifier}' encontrado. Redirecionando para o pallet '{real_pallet}'.")
             return redirect(url_for('find_data', percurso=percurso, entrega=entrega, identifier=str(real_pallet)))
         else:
-            # Se o pallet está vazio, mostra a página de aguardando
             print("Placeholder encontrado, mas o pallet está vazio. Exibindo página de aguardando conferência.")
             display_data = build_display_data(found_data)
             return render_template('aguardando.html', data=display_data)
@@ -98,7 +95,6 @@ def find_data(percurso, entrega, identifier):
         (df['PALLET'] == identifier)
     ]
 
-    # Se encontrou pelo Pallet, exibe a página principal
     if not result_row_pallet.empty:
         found_data = result_row_pallet.iloc[0].to_dict()
         print(f"Pallet '{identifier}' encontrado diretamente. Exibindo dados completos.")
@@ -113,6 +109,17 @@ def find_data(percurso, entrega, identifier):
 def page_not_found(e):
     return render_template('404.html', error=e.description), 404
 
+# --- NOVA FUNÇÃO ANTI-CACHE ---
+# Esta função é executada após cada requisição e adiciona headers para 
+# instruir o navegador a não guardar a página em cache.
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '-1'
+    return response
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
