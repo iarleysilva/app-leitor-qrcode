@@ -1,5 +1,5 @@
 # --- Importações necessárias ---
-from flask import Flask, render_template, redirect, abort
+from flask import Flask, render_template, redirect, abort, url_for
 import gspread
 import pandas as pd
 from oauth2client.service_account import ServiceAccountCredentials
@@ -15,14 +15,12 @@ def get_sheet_data():
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         
-        # Lógica de credenciais segura para o Render.com
         creds_json_str = os.environ.get('GOOGLE_CREDENTIALS_JSON', None)
         if creds_json_str:
             creds_dict = json.loads(creds_json_str)
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
             print("Credenciais carregadas a partir da variável de ambiente.")
         else:
-            # Fallback para o ficheiro local para testes
             creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
             print("Credenciais carregadas a partir do ficheiro local 'credentials.json'.")
 
@@ -33,7 +31,6 @@ def get_sheet_data():
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
         
-        # Garante que as colunas de busca sejam tratadas como texto
         for col in ['NR_PERCURSO', 'NR_ENTREGA', 'Placeholder', 'PALLET']:
             if col in df.columns:
                 df[col] = df[col].astype(str)
@@ -43,33 +40,10 @@ def get_sheet_data():
         print(f"Erro ao acessar a planilha: {e}")
         return None
 
-# --- Rota Principal da Aplicação ---
-@app.route('/<string:percurso>/<string:entrega>/<string:placeholder>')
-def find_data(percurso, entrega, placeholder):
-    """ Função principal que é chamada quando um QR Code é lido. """
-    print(f"Buscando por Percurso={percurso}, Entrega={entrega}, Placeholder={placeholder}")
-    
-    df = get_sheet_data()
-    
-    if df is None:
-        return "Erro: Não foi possível conectar à base de dados.", 500
-
-    result_row = df[
-        (df['NR_PERCURSO'] == percurso) &
-        (df['NR_ENTREGA'] == entrega) &
-        (df['Placeholder'] == placeholder)
-    ]
-    
-    if result_row.empty:
-        print("Nenhum registro encontrado.")
-        abort(404, description="Registro não encontrado para os dados fornecidos.")
-
-    found_data = result_row.iloc[0].to_dict()
-    
-    # --- DICIONÁRIO DE DADOS CORRIGIDO ---
-    # Agora as chaves ('nm_cliente', 'cd_produto', etc.) correspondem
-    # exatamente ao que o template index.html espera ({{ data.nm_cliente }}, etc.)
-    display_data = {
+# --- Função Auxiliar para criar o dicionário de dados ---
+def build_display_data(found_data):
+    """Cria o dicionário de dados para ser enviado ao template."""
+    return {
         'nm_cliente': found_data.get('NM_CLIENTE', 'N/A'),
         'nr_percurso': found_data.get('NR_PERCURSO', 'N/A'),
         'nr_entrega': found_data.get('NR_ENTREGA', 'N/A'),
@@ -81,12 +55,59 @@ def find_data(percurso, entrega, placeholder):
         'unidade': found_data.get('UNIDADE', '')
     }
 
-    if str(found_data.get('PALLET', '')).strip():
-        print(f"Pallet encontrado ({display_data['pallet']}). Exibindo dados completos.")
+# --- Rota Principal da Aplicação (MODIFICADA) ---
+@app.route('/<string:percurso>/<string:entrega>/<string:identifier>')
+def find_data(percurso, entrega, identifier):
+    """
+    Recebe um identificador. Se for um Placeholder, redireciona para a URL com o 
+    número real do Pallet. Se já for o número do Pallet, exibe os dados.
+    """
+    print(f"Buscando por Percurso={percurso}, Entrega={entrega}, Identifier={identifier}")
+    
+    df = get_sheet_data()
+    
+    if df is None:
+        return "Erro: Não foi possível conectar à base de dados.", 500
+
+    # 1. Tenta encontrar o registro usando o 'identifier' como um Placeholder
+    result_row_placeholder = df[
+        (df['NR_PERCURSO'] == percurso) &
+        (df['NR_ENTREGA'] == entrega) &
+        (df['Placeholder'] == identifier)
+    ]
+
+    # Se encontrou usando o Placeholder, decide se redireciona ou mostra 'aguardando'
+    if not result_row_placeholder.empty:
+        found_data = result_row_placeholder.iloc[0].to_dict()
+        real_pallet = found_data.get('PALLET')
+        
+        # Se o pallet real existe e não está vazio, redireciona
+        if real_pallet and str(real_pallet).strip():
+            print(f"Placeholder '{identifier}' encontrado. Redirecionando para o pallet '{real_pallet}'.")
+            return redirect(url_for('find_data', percurso=percurso, entrega=entrega, identifier=str(real_pallet)))
+        else:
+            # Se o pallet está vazio, mostra a página de aguardando
+            print("Placeholder encontrado, mas o pallet está vazio. Exibindo página de aguardando conferência.")
+            display_data = build_display_data(found_data)
+            return render_template('aguardando.html', data=display_data)
+
+    # 2. Se não era um Placeholder, tenta encontrar usando o 'identifier' como um Pallet real
+    result_row_pallet = df[
+        (df['NR_PERCURSO'] == percurso) &
+        (df['NR_ENTREGA'] == entrega) &
+        (df['PALLET'] == identifier)
+    ]
+
+    # Se encontrou pelo Pallet, exibe a página principal
+    if not result_row_pallet.empty:
+        found_data = result_row_pallet.iloc[0].to_dict()
+        print(f"Pallet '{identifier}' encontrado diretamente. Exibindo dados completos.")
+        display_data = build_display_data(found_data)
         return render_template('index.html', data=display_data)
-    else:
-        print("Pallet vazio. Exibindo página de aguardando conferência.")
-        return render_template('aguardando.html', data=display_data)
+        
+    # 3. Se não encontrou de nenhuma forma, retorna erro
+    print("Nenhum registro encontrado para o identificador fornecido.")
+    abort(404, description="Registro não encontrado para os dados fornecidos.")
 
 @app.errorhandler(404)
 def page_not_found(e):
