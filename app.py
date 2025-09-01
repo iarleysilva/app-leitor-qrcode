@@ -66,18 +66,19 @@ def find_data(percurso, entrega, placeholder):
 
     found_data = result_row.iloc[0].to_dict()
     
-    # --- DICIONÁRIO DE DADOS ATUALIZADO ---
-    # Agora envia todos os dados com os nomes corretos que o index.html espera
+    # --- DICIONÁRIO DE DADOS CORRIGIDO ---
+    # Agora as chaves ('nm_cliente', 'cd_produto', etc.) correspondem
+    # exatamente ao que o template index.html espera ({{ data.nm_cliente }}, etc.)
     display_data = {
-        'cliente': found_data.get('NM_CLIENTE', 'N/A'),
+        'nm_cliente': found_data.get('NM_CLIENTE', 'N/A'),
         'nr_percurso': found_data.get('NR_PERCURSO', 'N/A'),
         'nr_entrega': found_data.get('NR_ENTREGA', 'N/A'),
         'pallet': found_data.get('PALLET', 'N/A'),
-        'cod_produto': found_data.get('CD_PRODUTO', 'N/A'),
-        'produto': found_data.get('NM_PRODUTO', 'N/A'),
+        'cd_produto': found_data.get('CD_PRODUTO', 'N/A'),
+        'nm_produto': found_data.get('NM_PRODUTO', 'N/A'),
         'tonalidade': found_data.get('TONALIDADE', 'N/A'),
         'qtde': found_data.get('QTDE', 'N/A'),
-        'unidade': found_data.get('UNIDADE', '') # Adicionado o campo que faltava
+        'unidade': found_data.get('UNIDADE', '')
     }
 
     if str(found_data.get('PALLET', '')).strip():
@@ -94,4 +95,3 @@ def page_not_found(e):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
