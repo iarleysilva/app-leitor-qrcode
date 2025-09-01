@@ -54,7 +54,6 @@ def find_data(percurso, entrega, placeholder):
     if df is None:
         return "Erro: Não foi possível conectar à base de dados.", 500
 
-    # Busca pela linha que corresponde aos 3 critérios
     result_row = df[
         (df['NR_PERCURSO'] == percurso) &
         (df['NR_ENTREGA'] == entrega) &
@@ -65,11 +64,10 @@ def find_data(percurso, entrega, placeholder):
         print("Nenhum registro encontrado.")
         abort(404, description="Registro não encontrado para os dados fornecidos.")
 
-    # Pega a primeira (e única) linha encontrada e a converte para um dicionário
     found_data = result_row.iloc[0].to_dict()
     
-    # --- LÓGICA DE DADOS CORRIGIDA ---
-    # Prepara um dicionário com os nomes que o HTML espera, traduzindo da planilha
+    # --- DICIONÁRIO DE DADOS ATUALIZADO ---
+    # Agora envia todos os dados com os nomes corretos que o index.html espera
     display_data = {
         'cliente': found_data.get('NM_CLIENTE', 'N/A'),
         'nr_percurso': found_data.get('NR_PERCURSO', 'N/A'),
@@ -78,25 +76,21 @@ def find_data(percurso, entrega, placeholder):
         'cod_produto': found_data.get('CD_PRODUTO', 'N/A'),
         'produto': found_data.get('NM_PRODUTO', 'N/A'),
         'tonalidade': found_data.get('TONALIDADE', 'N/A'),
-        'qtde': found_data.get('QTDE', 'N/A')
+        'qtde': found_data.get('QTDE', 'N/A'),
+        'unidade': found_data.get('UNIDADE', '') # Adicionado o campo que faltava
     }
 
-    # Verifica se a coluna PALLET tem algum valor
     if str(found_data.get('PALLET', '')).strip():
         print(f"Pallet encontrado ({display_data['pallet']}). Exibindo dados completos.")
-        # Se tiver valor, mostra a página de detalhes
         return render_template('index.html', data=display_data)
     else:
         print("Pallet vazio. Exibindo página de aguardando conferência.")
-        # Se a coluna PALLET estiver vazia, mostra a página de status
         return render_template('aguardando.html', data=display_data)
 
-# Rota para página de erro 404 personalizada
 @app.errorhandler(404)
 def page_not_found(e):
     return render_template('404.html', error=e.description), 404
 
-# --- Ponto de entrada para execução ---
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
